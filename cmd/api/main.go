@@ -4,16 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/nickstrad/greenlight/internal/data"
 	"github.com/nickstrad/greenlight/internal/jsonlog"
+	"github.com/nickstrad/greenlight/internal/mailer"
 )
 
 const version = "1.0.0"
@@ -32,12 +33,21 @@ type config struct {
 		burst   int
 		enabled bool
 	}
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
 }
 
 type application struct {
 	config config
 	logger *jsonlog.Logger
 	models data.Models
+	mailer mailer.Mailer
+	wg     sync.WaitGroup
 }
 
 func main() {
@@ -47,6 +57,7 @@ func main() {
 	}
 
 	var cfg config
+	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production")
@@ -61,9 +72,24 @@ func main() {
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
-	flag.Parse()
 
-	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
+	port := os.Getenv("GREENLIGHT_SMTP_PORT")
+	if port == "" {
+		port = "25"
+	}
+
+	smtpPort, err := strconv.Atoi(port)
+	if err != nil {
+		logger.PrintFatal(err, nil)
+	}
+
+	flag.IntVar(&cfg.smtp.port, "smtp-port", smtpPort, "SMTP port")
+	flag.StringVar(&cfg.smtp.host, "smtp-host", os.Getenv("GREENLIGHT_SMTP_HOST"), "SMTP host")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", os.Getenv("GREENLIGHT_SMTP_USERNAME"), "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", os.Getenv("GREENLIGHT_SMTP_PASSWORD"), "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", os.Getenv("GREENLIGHT_SMTP_SENDER"), "SMTP sender")
+
+	flag.Parse()
 
 	db, err := openDB(cfg)
 
@@ -79,24 +105,13 @@ func main() {
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
+		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
 
-	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.port),
-		Handler:      app.routes(),
-		ErrorLog:     log.New(logger, "", 0),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
+	err = app.server()
+	if err != nil {
+		logger.PrintFatal(err, nil)
 	}
-
-	logger.PrintInfo("starting server", map[string]string{
-		"env":  cfg.env,
-		"addr": srv.Addr,
-	})
-
-	err = srv.ListenAndServe()
-	logger.PrintFatal(err, nil)
 }
 
 func openDB(cfg config) (*sql.DB, error) {
