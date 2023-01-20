@@ -159,3 +159,52 @@ func (app *application) requireActivatedUser(next http.HandlerFunc) http.Handler
 
 	return app.requireAuthenticatedUser(fn)
 }
+
+func (app *application) requirePermission(code string, next http.HandlerFunc) http.HandlerFunc {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+
+		permissions, err := app.models.Permissions.GetAllForUser(user.ID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		if !permissions.Include(code) {
+			app.notPermittedResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}
+
+	return app.requireActivatedUser(fn)
+}
+
+func (app *application) enableCORS(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Origin")
+		w.Header().Add("Vary", "Access-Control-Request-Method")
+		origin := r.Header.Get("Origin")
+
+		if origin == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		for i := range app.config.cors.trustedOrigins {
+			if app.config.cors.trustedOrigins[i] == origin {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+					w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,PUT,PATCH,DELETE")
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization,Content-Type")
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				break
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	}
+}
