@@ -8,7 +8,7 @@ import (
 	"encoding/base32"
 	"time"
 
-	"github.com/nickstrad/greenlight/internal/validator"
+	"github.com/nickstrad/movienite/internal/validator"
 )
 
 const (

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/nickstrad/greenlight/internal/data"
-	"github.com/nickstrad/greenlight/internal/validator"
+	"github.com/nickstrad/movienite/internal/data"
+	"github.com/nickstrad/movienite/internal/validator"
 )
 
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {

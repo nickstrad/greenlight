@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/nickstrad/greenlight/internal/validator"
+	"github.com/nickstrad/movienite/internal/validator"
 )
 
 const STATUS_INTERNAL_SERVER_ERROR_MESSAGE = "The server encountered a problem and could not process your request"

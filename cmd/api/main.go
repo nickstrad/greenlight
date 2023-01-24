@@ -3,19 +3,18 @@ package main
 import (
 	"context"
 	"database/sql"
+	"expvar"
 	"flag"
-	"log"
 	"os"
-	"strconv"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/nickstrad/greenlight/internal/data"
-	"github.com/nickstrad/greenlight/internal/jsonlog"
-	"github.com/nickstrad/greenlight/internal/mailer"
+	"github.com/nickstrad/movienite/internal/data"
+	"github.com/nickstrad/movienite/internal/jsonlog"
+	"github.com/nickstrad/movienite/internal/mailer"
 )
 
 const version = "1.0.0"
@@ -55,18 +54,13 @@ type application struct {
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
 	var cfg config
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production")
 
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
 
 	//db connectin pool settings
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
@@ -77,21 +71,11 @@ func main() {
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 
-	port := os.Getenv("GREENLIGHT_SMTP_PORT")
-	if port == "" {
-		port = "25"
-	}
-
-	smtpPort, err := strconv.Atoi(port)
-	if err != nil {
-		logger.PrintFatal(err, nil)
-	}
-
-	flag.IntVar(&cfg.smtp.port, "smtp-port", smtpPort, "SMTP port")
-	flag.StringVar(&cfg.smtp.host, "smtp-host", os.Getenv("GREENLIGHT_SMTP_HOST"), "SMTP host")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", os.Getenv("GREENLIGHT_SMTP_USERNAME"), "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", os.Getenv("GREENLIGHT_SMTP_PASSWORD"), "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", os.Getenv("GREENLIGHT_SMTP_SENDER"), "SMTP sender")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 0, "SMTP port")
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "", "SMTP host")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "", "SMTP sender")
 
 	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
 		cfg.cors.trustedOrigins = strings.Fields(val)
@@ -110,6 +94,21 @@ func main() {
 	defer db.Close()
 
 	logger.PrintInfo("database connection pool established", nil)
+
+	expvar.NewString("version").Set(version)
+
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
+
+	expvar.Publish("database", expvar.Func(func() any {
+		return db.Stats()
+	}))
+
+	expvar.Publish("timestamp", expvar.Func(func() any {
+		return time.Now().Unix()
+	}))
+
 	app := &application{
 		config: cfg,
 		logger: logger,

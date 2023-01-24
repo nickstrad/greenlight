@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/nickstrad/greenlight/internal/data"
+	"github.com/nickstrad/movienite/internal/data"
 )
 
 type contextKey string
