@@ -19,8 +19,8 @@ helper/confirm:
 ## api/run: run the cmd/api app
 .PHONY: api/run
 api/run:
-	go run ./cmd/api \
-	-db-dsn="postgres://movienite:secret_pwd@localhost/movienite?sslmode=disable" \
+	@go run ./cmd/api \
+	-db-dsn="postgres://movienite:${MOVIENITE_POSTGRES_DB_PASSWORD}@localhost/movienite?sslmode=disable" \
 	-smtp-port=${MOVIENITE_SMTP_PORT} \
 	-smtp-host=${MOVIENITE_SMTP_HOST} \
 	-smtp-username=${MOVIENITE_SMTP_USERNAME} \
