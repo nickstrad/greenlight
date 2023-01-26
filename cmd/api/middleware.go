@@ -4,7 +4,6 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/nickstrad/movienite/internal/data"
 	"github.com/nickstrad/movienite/internal/validator"
+	"github.com/tomasen/realip"
 	"golang.org/x/time/rate"
 
 	"github.com/felixge/httpsnoop"
@@ -63,11 +63,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 			return
 		}
 
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-
-		if err != nil {
-			app.serverErrorResponse(w, r, err)
-		}
+		ip := realip.FromRequest(r)
 
 		mu.Lock()
 

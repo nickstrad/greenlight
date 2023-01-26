@@ -57,7 +57,7 @@ db/migrations/down: helper/confirm
 
 
 .PHONY: db/migrations/force
-db/migrations/force:
+force/db/migrations/:
 	@echo "Forcing db version for ${version}..."
 	migrate -path migrations/ -database ${MOVIENITE_DB_DSN} force ${version}
 
@@ -83,3 +83,13 @@ vendor:
 	go mod verify
 	@echo "Vendoring dependencies..."
 	go mod vendor
+
+
+##################
+# Build
+##################
+.PHONY: api/build
+api/build:
+	@echo 'Building cmd/api...'
+	go build -ldflags='-s' -o=./bin/api ./cmd/api 
+	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd/api ./cmd/api
