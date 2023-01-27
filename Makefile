@@ -93,3 +93,26 @@ api/build:
 	@echo 'Building cmd/api...'
 	go build -ldflags='-s' -o=./bin/api ./cmd/api 
 	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd/api ./cmd/api
+
+#############
+# Production
+#############
+production_host_ip = '144.126.208.178'
+.PHONY: production/connect
+production/connect:
+	ssh movienite@${production_host_ip}
+
+
+.PHONY: production/deploy/api
+production/deploy/api:
+	rsync -P ./bin/linux_amd64/api movienite@${production_host_ip}:~
+	rsync -rP --delete ./migrations movienite@${production_host_ip}:~
+	rsync -P ./remote/production/api.service movienite@${production_host_ip}:~
+	rsync -P ./remote/production/Caddyfile movienite@${production_host_ip}:~
+	ssh -t movienite@${production_host_ip} '\
+		migrate -path ~/migrations -database $$MOVIENITE_DB_DSN up \
+        && sudo mv ~/api.service /etc/systemd/system/ \
+        && sudo systemctl enable api \
+        && sudo systemctl restart api \
+        && sudo mv ~/Caddyfile /etc/caddy/ \
+        && sudo systemctl reload caddy \
