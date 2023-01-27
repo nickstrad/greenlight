@@ -1,0 +1,10 @@
+# Set the email address that should be used for contact if there is a problem with the TLS
+# certificate.
+{
+    email nickstrad.dev@gmail.com
+}
+
+http://144.126.208.178 {
+    respond /debug/* "Not Permitted" 403
+    reverse_proxy localhost:4000
+}

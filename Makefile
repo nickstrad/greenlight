@@ -92,12 +92,20 @@ vendor:
 api/build:
 	@echo 'Building cmd/api...'
 	go build -ldflags='-s' -o=./bin/api ./cmd/api 
-	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd/api ./cmd/api
+	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd64/api ./cmd/api
 
 #############
 # Production
 #############
 production_host_ip = '144.126.208.178'
+.PHONY: production/view/logs
+production/view/logs:
+	ssh -t movienite@${production_host_ip} "sudo journalctl -u api"
+
+.PHONY: production/view/metrics
+production/view/metrics:
+	ssh -t movienite@${production_host_ip} "curl http://localhost:4000/debug/vars"
+
 .PHONY: production/connect
 production/connect:
 	ssh movienite@${production_host_ip}
@@ -116,3 +124,4 @@ production/deploy/api:
         && sudo systemctl restart api \
         && sudo mv ~/Caddyfile /etc/caddy/ \
         && sudo systemctl reload caddy \
+	'
