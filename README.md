@@ -7,4 +7,5 @@ This repo is based on the book [Lets go Further](https://lets-go-further.alexedw
 ### skills workd on
 - REST API development
 - SQl database modeling using PostgreSQL
+- Using migration approach to versioning database
 - Go based project
