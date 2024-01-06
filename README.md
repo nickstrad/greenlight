@@ -3,3 +3,8 @@ Movienite is a golang based API for storing information about movies. Features i
 
 # Motivation
 This repo is based on the book [Lets go Further](https://lets-go-further.alexedwards.net/) by Alex Edwards as a learning project. It was 100% handcoded and worked through, with various refactorings to put my own twist on some sections of code. 
+
+### skills workd on
+- REST API development
+- SQl database modeling using PostgreSQL
+- Go based project
